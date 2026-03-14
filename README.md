@@ -94,60 +94,58 @@ When multiple AI sessions work on the same product, they submit proposals to the
 
 ## How it works
 
-```
-                    ┌─────────────────────────────────────────┐
-                    │             Product Graph                │
-                    │         (SQLite via SQLModel)            │
-                    │  nodes: entity · flow · page · policy   │
-                    │         integration · (custom)           │
-                    │  events: append-only mutation log        │
-                    └──────────────┬──────────────────────────┘
-                                   │
-              ┌────────────────────┼────────────────────┐
-              │                    │                    │
-              ▼                    ▼                    ▼
-       PolicyEngine          Executor            GeneratorEngine
-    validates every      applies approved        compiles graph →
-    PatchProposal         proposals to           generated/ (pure
-    before it lands       the graph              functions, deterministic)
-              │                    │                    │
-              └────────────────────┴────────────────────┘
-                                   │
-                    ┌──────────────▼──────────────┐
-                    │         FastAPI App          │
-                    │  /mcp  — agent protocol      │
-                    │  /_console — approval UI     │
-                    │  /api/* — CRUD endpoints     │
-                    │  /<flow>/* — flow routes     │
-                    └─────────────────────────────┘
+```mermaid
+flowchart TD
+    PG["**Product Graph**
+    SQLite via SQLModel
+    nodes: entity · flow · page · policy · integration
+    events: append-only mutation log"]
+
+    PG --> PE & EX & GE
+
+    PE["**PolicyEngine**
+    validates every PatchProposal
+    before it lands"]
+
+    EX["**Executor**
+    applies approved proposals
+    to the graph"]
+
+    GE["**GeneratorEngine**
+    compiles graph → generated/
+    pure functions, deterministic"]
+
+    PE & EX & GE --> APP
+
+    APP["**FastAPI App**
+    /mcp — agent protocol
+    /_console — approval UI
+    /api/* — CRUD endpoints
+    /&lt;flow&gt;/* — flow routes"]
 ```
 
 ### The approval loop in detail
 
-```
-Agent                Protocol (/mcp)        PolicyEngine        Console (/_console)
-  │                       │                      │                      │
-  ├─ POST /graph/patch ──►│                      │                      │
-  │                       ├─ validate() ────────►│                      │
-  │                       │◄─ [results] ─────────┤                      │
-  │                       │                      │                      │
-  │    copy change +       │                      │                      │
-  │    all policies pass?  │                      │                      │
-  │◄─ AUTO_APPROVED ───────┤                      │                      │
-  │                       │                      │                      │
-  │    structural change   │                      │                      │
-  │    or policy warning?  │                      │                      │
-  │◄─ PENDING ─────────────┤──────────────────────────────────────────►│
-  │                       │                      │            diff + checklist
-  │                       │                      │            Approve / Reject
-  │                       │                      │                      │
-  │                       │◄──────── APPROVED ───────────────────────────┤
-  │                       │                      │                      │
-  │                       │  Executor.apply()    │                      │
-  │                       │  graph mutation      │                      │
-  │                       │  run_for_node()      │                      │
-  │                       │  generated/ updated  │                      │
-  │                       │  server reloads      │                      │
+```mermaid
+sequenceDiagram
+    participant A as Agent
+    participant M as Protocol (/mcp)
+    participant P as PolicyEngine
+    participant C as Console (/_console)
+
+    A->>M: POST /graph/patch
+    M->>P: validate()
+    P-->>M: policy results
+
+    alt copy change · all policies pass
+        M-->>A: AUTO_APPROVED
+    else structural change or policy warning
+        M-->>A: PENDING
+        M->>C: diff + policy results
+        Note over C: Human reviews<br/>Approve / Reject
+        C->>M: APPROVED
+        Note over M: Executor.apply()<br/>graph mutation<br/>run_for_node()<br/>generated/ updated<br/>server reloads
+    end
 ```
 
 ### Blast radius awareness
