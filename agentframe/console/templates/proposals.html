@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title_suffix %} — Proposals{% endblock %}
+{% block body %}
+
+<aside class="sidebar">
+    <div class="sidebar-section">
+        <div class="sidebar-section-title">Filter</div>
+        <a class="sidebar-item {% if not status_filter %}selected{% endif %}" href="/_console/proposals">All</a>
+        <a class="sidebar-item {% if status_filter == 'pending' %}selected{% endif %}" href="/_console/proposals?status=pending">Pending</a>
+        <a class="sidebar-item {% if status_filter == 'approved' %}selected{% endif %}" href="/_console/proposals?status=approved">Approved</a>
+        <a class="sidebar-item {% if status_filter == 'auto_approved' %}selected{% endif %}" href="/_console/proposals?status=auto_approved">Auto-approved</a>
+        <a class="sidebar-item {% if status_filter == 'rejected' %}selected{% endif %}" href="/_console/proposals?status=rejected">Rejected</a>
+    </div>
+</aside>
+
+<main class="content">
+    <h2>Proposals
+        <span style="font-size: 0.875rem; font-weight: 400; color: #64748b; margin-left: 0.5rem;">
+            ({{ proposals|length }} total)
+        </span>
+    </h2>
+
+    {% if proposals %}
+    <div class="card" style="padding: 0; overflow: hidden;">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Op</th>
+                    <th>Node</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in proposals %}
+                <tr>
+                    <td>
+                        <a href="/_console/proposals/{{ p.id }}" style="font-family: monospace; font-size: 0.8rem; color: #2563eb;">
+                            {{ p.id[:8] }}…
+                        </a>
+                    </td>
+                    <td>
+                        <code style="font-size: 0.8rem;">{{ p.op }}</code>
+                    </td>
+                    <td>
+                        <span class="node-type-badge badge-{{ p.node_type }}">{{ p.node_type[0].upper() }}</span>
+                        <code style="font-size: 0.8rem;">{{ p.node_id }}</code>
+                    </td>
+                    <td>
+                        <span class="status-badge status-{{ p.status }}">{{ p.status }}</span>
+                    </td>
+                    <td style="font-size: 0.8rem; color: #64748b;">
+                        {{ p.created_at.strftime('%m-%d %H:%M') }}
+                    </td>
+                    <td>
+                        {% if p.status == 'pending' %}
+                        <form method="POST" action="/_console/proposals/{{ p.id }}/approve" style="display: inline;">
+                            <button type="submit" class="btn btn-approve">Approve</button>
+                        </form>
+                        <form method="POST" action="/_console/proposals/{{ p.id }}/reject" style="display: inline;">
+                            <button type="submit" class="btn btn-reject">Reject</button>
+                        </form>
+                        {% else %}
+                        <a href="/_console/proposals/{{ p.id }}" class="btn btn-secondary">View</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="card">
+        <p style="color: #94a3b8;">No proposals yet. Run the agent demo to create one.</p>
+        <pre style="margin-top: 1rem; font-size: 0.8rem;">python demo_app/demo_agent.py</pre>
+    </div>
+    {% endif %}
+</main>
+
+{% endblock %}

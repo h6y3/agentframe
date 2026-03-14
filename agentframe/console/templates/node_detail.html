@@ -1,0 +1,33 @@
+<div class="card">
+    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+        <span class="node-type-badge badge-{{ node.node_type }}" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">
+            {{ node.node_type }}
+        </span>
+        <strong style="font-size: 1.1rem;">{{ node.label }}</strong>
+    </div>
+
+    <div class="detail-label">ID</div>
+    <div class="detail-value"><code>{{ node.id }}</code></div>
+
+    <div class="detail-label">Attributes</div>
+    <div class="detail-value">
+        <pre>{{ attrs_json }}</pre>
+    </div>
+
+    {% if affected_files %}
+    <div class="detail-label">Affected Generated Files</div>
+    <div class="detail-value">
+        <ul style="font-size: 0.8rem; color: #475569; list-style: none;">
+            {% for f in affected_files %}
+            <li style="padding: 0.2rem 0;"><code>{{ f }}</code></li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <div class="detail-label">Timestamps</div>
+    <div class="detail-value" style="font-size: 0.8rem; color: #64748b;">
+        Created: {{ node.created_at.strftime('%Y-%m-%d %H:%M:%S') }}<br>
+        Updated: {{ node.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}
+    </div>
+</div>

@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title_suffix %} — Deploy{% endblock %}
+{% block body %}
+<div class="content" style="max-width: 900px;">
+    <h2>Deploy</h2>
+    <p style="color: #64748b; margin-bottom: 1.5rem; font-size: 0.875rem;">
+        Build generated code and deploy to GCP Cloud Run or AWS App Runner.<br>
+        Migrations run automatically on container startup. Add deployment targets via integration nodes in the graph.
+    </p>
+
+    {% if message %}
+    <div class="alert alert-{{ message_type or 'info' }}">{{ message }}</div>
+    {% endif %}
+
+    <!-- Secrets checklist -->
+    <div class="card">
+        <div class="card-title">Required Secrets</div>
+        <p style="color: #64748b; font-size: 0.8rem; margin: 0.5rem 0 0.75rem;">All secrets must be set before deploying to production.</p>
+        {% if not secrets %}
+        <p style="color: #64748b; font-size: 0.875rem;">No secrets declared. Run generators first.</p>
+        {% else %}
+        <ul style="list-style: none;">
+            {% for s in secrets %}
+            <li style="padding: 0.25rem 0; font-size: 0.875rem;">
+                {% if s.encrypted_value %}
+                <span class="value-set">✓</span>
+                {% else %}
+                <span class="value-unset">✗</span>
+                {% endif %}
+                <code>{{ s.env_var }}</code>
+                {% if not s.encrypted_value %}
+                — <a href="/_console/secrets" style="color: #2563eb;">Set in Secrets</a>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+
+    <!-- Build -->
+    <div class="card">
+        <div class="card-title">Step 1 — Build</div>
+        <p style="color: #64748b; font-size: 0.8rem; margin: 0.5rem 0 0.75rem;">
+            Run all generators and write output to <code>generated/</code>.
+        </p>
+        <form method="POST" action="/_console/deploy/build">
+            <button type="submit" class="btn btn-primary">Run Build</button>
+        </form>
+        {% if build_summary %}
+        <div style="margin-top: 0.75rem;">
+            <pre>{{ build_summary }}</pre>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Deploy targets -->
+    {% if has_gcp %}
+    <div class="card">
+        <div class="card-title">GCP Cloud Run</div>
+        <p style="color: #64748b; font-size: 0.8rem; margin: 0.5rem 0 0.75rem;">
+            Builds Docker image, pushes to GCR, deploys new revision to Cloud Run.
+            Requires: <code>docker</code>, <code>gcloud</code> authenticated.
+        </p>
+        <form method="POST" action="/_console/deploy/gcp">
+            <button type="submit" class="btn btn-approve">Deploy to GCP</button>
+        </form>
+    </div>
+    {% endif %}
+
+    {% if has_aws %}
+    <div class="card">
+        <div class="card-title">AWS App Runner</div>
+        <p style="color: #64748b; font-size: 0.8rem; margin: 0.5rem 0 0.75rem;">
+            Builds Docker image, pushes to ECR, updates App Runner service.
+            Requires: <code>docker</code>, <code>aws</code> CLI authenticated.
+        </p>
+        <form method="POST" action="/_console/deploy/aws">
+            <button type="submit" class="btn btn-approve">Deploy to AWS</button>
+        </form>
+    </div>
+    {% endif %}
+
+    {% if not has_gcp and not has_aws %}
+    <div class="card">
+        <div class="alert alert-info" style="margin: 0;">
+            No deployment targets configured. Add an integration node to the graph:<br><br>
+            <code>graph.add_node("integration", "deploy_gcp", "Deploy: GCP Cloud Run", attrs={"provider": "gcp_cloudrun", "project_id": "my-project", "region": "us-central1"})</code>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if deploy_output %}
+    <div class="card">
+        <div class="card-title">Deploy Output</div>
+        <pre>{{ deploy_output }}</pre>
+    </div>
+    {% endif %}
+
+    <!-- Iteration workflow reminder -->
+    <div class="card" style="background: #f8fafc;">
+        <div class="card-title" style="color: #475569;">Iteration Workflow</div>
+        <pre style="background: #1e293b; font-size: 0.75rem; margin-top: 0.5rem;">
+1. Propose changes via /mcp → approve in Proposals tab
+2. Click "Run Build" above  (generators rerun, main_prod.py updated)
+3. Click "Deploy to GCP/AWS"
+   → docker build + push
+   → cloud service updated
+   → container starts: alembic upgrade head (migrations applied)
+   → new revision live, old data preserved</pre>
+    </div>
+</div>
+{% endblock %}

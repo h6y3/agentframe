@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title_suffix %} — Graph Explorer{% endblock %}
+{% block body %}
+
+<aside class="sidebar">
+    {% for type_name, nodes in grouped_nodes.items() %}
+    <div class="sidebar-section">
+        <div class="sidebar-section-title">{{ type_name }}</div>
+        {% for node in nodes %}
+        <button
+            class="sidebar-item"
+            hx-get="/_console/nodes/{{ node.id }}"
+            hx-target="#node-detail"
+            hx-swap="innerHTML"
+            onclick="document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('selected')); this.classList.add('selected');"
+        >
+            <span class="node-type-badge badge-{{ node.node_type }}">{{ node.node_type[0].upper() }}</span>
+            {{ node.label }}
+        </button>
+        {% endfor %}
+    </div>
+    {% endfor %}
+</aside>
+
+<main class="content">
+    <h2>Graph Explorer</h2>
+    <div id="node-detail">
+        <div class="card">
+            <p style="color: #94a3b8; font-size: 0.875rem;">
+                Select a node from the sidebar to view its details.
+            </p>
+            <p style="color: #94a3b8; font-size: 0.875rem; margin-top: 0.5rem;">
+                Total nodes: <strong>{{ total_nodes }}</strong>
+                &nbsp;|&nbsp;
+                <a href="/_console/proposals">View Proposals →</a>
+            </p>
+        </div>
+    </div>
+</main>
+
+{% endblock %}

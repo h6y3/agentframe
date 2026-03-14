@@ -1,0 +1,17 @@
+generated/
+*.db
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+.venv/
+.env
+.agentframe_key
+main_prod.py
+alembic/
+alembic.ini
+Dockerfile
+.dockerignore
+docker-compose.yml
+.env.example
+deploy/

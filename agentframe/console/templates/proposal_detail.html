@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title_suffix %} — Proposal {{ proposal.id[:8] }}{% endblock %}
+{% block body %}
+
+<aside class="sidebar">
+    <div class="sidebar-section">
+        <div class="sidebar-section-title">Navigation</div>
+        <a class="sidebar-item" href="/_console/proposals">← All Proposals</a>
+        <a class="sidebar-item" href="/_console">Graph Explorer</a>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-section-title">Status</div>
+        <div style="padding: 0 1rem;">
+            <span class="status-badge status-{{ proposal.status }}" style="font-size: 0.8rem;">
+                {{ proposal.status }}
+            </span>
+        </div>
+    </div>
+</aside>
+
+<main class="content">
+    <h2>Proposal Detail</h2>
+
+    {% if message %}
+    <div class="alert alert-success">{{ message }}</div>
+    {% endif %}
+
+    <!-- Summary card -->
+    <div class="card">
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+            <div>
+                <div class="detail-label">Operation</div>
+                <div><code>{{ proposal.op }}</code></div>
+            </div>
+            <div>
+                <div class="detail-label">Node Type</div>
+                <div>
+                    <span class="node-type-badge badge-{{ proposal.node_type }}">{{ proposal.node_type }}</span>
+                </div>
+            </div>
+            <div>
+                <div class="detail-label">Node ID</div>
+                <div><code>{{ proposal.node_id }}</code></div>
+            </div>
+            <div>
+                <div class="detail-label">Created</div>
+                <div style="font-size: 0.875rem;">{{ proposal.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+            </div>
+            <div>
+                <div class="detail-label">Resolved By</div>
+                <div style="font-size: 0.875rem;">{{ proposal.resolved_by }}</div>
+            </div>
+            <div>
+                <div class="detail-label">Full ID</div>
+                <div><code style="font-size: 0.75rem;">{{ proposal.id }}</code></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diff -->
+    <div class="card">
+        <div class="card-title">Change Preview</div>
+        <pre>{{ diff_preview }}</pre>
+    </div>
+
+    <!-- Policy Results -->
+    <div class="card">
+        <div class="card-title">Policy Results</div>
+        <ul class="policy-list">
+            {% for r in policy_results %}
+            <li class="{% if r.passed %}policy-pass{% elif r.severity == 'warn' %}policy-fail-warn{% else %}policy-fail-error{% endif %}">
+                {% if r.passed %}✓{% else %}✗{% endif %}
+                <strong>{{ r.rule }}</strong>
+                {% if not r.passed %} — {{ r.reason }}
+                    {% if r.severity == 'warn' %}<em>(warning)</em>{% endif %}
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Actions for pending proposals -->
+    {% if proposal.status == 'pending' %}
+    <div class="card" style="display: flex; gap: 1rem; align-items: center;">
+        <form method="POST" action="/_console/proposals/{{ proposal.id }}/approve">
+            <button type="submit" class="btn btn-approve">✓ Approve &amp; Apply</button>
+        </form>
+        <form method="POST" action="/_console/proposals/{{ proposal.id }}/reject">
+            <button type="submit" class="btn btn-reject">✗ Reject</button>
+        </form>
+    </div>
+    {% elif proposal.status in ('approved', 'auto_approved') %}
+    <div class="alert alert-success">
+        ✓ This proposal has been applied. Files have been regenerated.
+    </div>
+    {% endif %}
+</main>
+
+{% endblock %}
