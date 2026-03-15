@@ -132,6 +132,51 @@ graph.add_node("integration", "deploy_aws", "Deploy: AWS App Runner", attrs={
 - `deploy/gcp/service.yaml` + `deploy/deploy_gcp.sh` (GCP)
 - `deploy/aws/apprunner.yaml` + `deploy/deploy_aws.sh` (AWS)
 
+See `docs/deploy-gcp-cloudrun.md` for full GCP Cloud Run setup guide.
+
+### LLM / API providers
+
+For apps that call external APIs (Anthropic, OpenAI, etc.), use an integration node
+to store configuration. Your custom code in `app/` reads from the graph.
+
+```python
+# Anthropic Claude
+graph.add_node("integration", "anthropic", "Anthropic API", attrs={
+    "provider": "anthropic",
+    "model": "claude-haiku-4-5-20251001",  # or claude-sonnet-4-20250514, etc.
+    "env_var": "ANTHROPIC_API_KEY",        # which env var holds the API key
+    "purpose": "wisdom_generation",         # what this integration is used for
+})
+
+# OpenAI
+graph.add_node("integration", "openai", "OpenAI API", attrs={
+    "provider": "openai",
+    "model": "gpt-4o",
+    "env_var": "OPENAI_API_KEY",
+    "purpose": "chat_completion",
+})
+```
+
+**Reading config in your code (`app/wisdom.py`):**
+
+```python
+from agentframe.graph.store import Graph
+
+def _get_llm_config() -> tuple[str, str]:
+    """Read LLM config from the graph integration node."""
+    graph = Graph()
+    node = graph.get_node("anthropic")
+    if node is None:
+        return "ANTHROPIC_API_KEY", "claude-haiku-4-5-20251001"
+    return node.attrs.get("env_var", "ANTHROPIC_API_KEY"), node.attrs.get("model")
+```
+
+**Why use the graph for this?**
+- Single source of truth for model configuration
+- Agents can update models via MCP without editing code
+- Easy to switch providers (change node attrs, not code)
+- Production config visible in `/_console/graph`
+
 ---
 
 ## Secrets

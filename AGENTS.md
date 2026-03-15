@@ -43,6 +43,7 @@ The loop is: **propose → validate → approve → regenerate → live.**
 - `agentframe/database/connection.py` — get_engine() + get_app_engine()
 - `agentframe/database/migrations.py` — run_pending_migrations() + generate_migration()
 - `agentframe/deployment/cli.py` — `agentframe` CLI: dev / build / migrate / deploy / secrets
+- `docs/deploy-gcp-cloudrun.md` — **Full GCP setup guide** (gcloud, billing, MCP for Claude Code)
 
 ### 6. See a complete working example
 - `demo_app/graph_seed.py` — seeds a starter SaaS app; study the node patterns
@@ -57,7 +58,7 @@ The loop is: **propose → validate → approve → regenerate → live.**
 4. Verify routes exist: `curl http://localhost:8000/<flow_id>/start`
 5. Check CRUD APIs: `curl http://localhost:8000/api/<entity_id>s/`
 6. Set required secrets: `/_console/secrets` or `agentframe secrets set <id>`
-7. To deploy: add integration nodes for `gcp_cloudrun` or `aws_apprunner`, then `agentframe deploy --target gcp`
+7. To deploy: see `docs/deploy-gcp-cloudrun.md` for full GCP setup (first-time), then `agentframe deploy --target gcp`
 8. If you need custom generators or policies, read `docs/extending.md`
 
 ## Iteration workflow
@@ -98,6 +99,26 @@ The loop is: **propose → validate → approve → regenerate → live.**
 | `policy` | `rule_fn`, `severity` | Metadata only (enforcement is in Python) |
 | `integration` (auth) | `provider: "google_oauth"` or `"email_magic_link"` | Auth routes + CSRF middleware |
 | `integration` (deploy) | `provider: "gcp_cloudrun"` or `"aws_apprunner"` | Deploy scripts + service config |
+
+## Cloud Run MCP (Claude Code deployment)
+
+If the user wants to deploy to GCP, help them set up the Cloud Run MCP server. This gives you direct deployment capabilities without manual CLI steps.
+
+**Check if installed**: Look for `mcp__cloud-run__*` tools in your available tools.
+
+**If not installed**: Guide user through `docs/deploy-gcp-cloudrun.md`:
+1. Install gcloud CLI: `brew install google-cloud-sdk`
+2. Authenticate: `gcloud auth login && gcloud auth application-default login`
+3. Create project (outside org if permission issues): `gcloud projects create my-app-$(date +%s)`
+4. Link billing: `gcloud billing projects link PROJECT_ID --billing-account=ACCOUNT_ID`
+5. Enable APIs: `gcloud services enable run.googleapis.com artifactregistry.googleapis.com`
+6. Add MCP: `claude mcp add --transport stdio --scope user cloud-run --env GOOGLE_CLOUD_PROJECT=PROJECT_ID -- npx -y @google-cloud/cloud-run-mcp`
+7. Restart Claude Code
+
+**Once installed, you can**:
+- `mcp__cloud-run__deploy_local_folder` — Deploy a directory directly
+- `mcp__cloud-run__list_services` — See running services
+- `mcp__cloud-run__get_service_log` — Debug deployment issues
 
 ## Rules
 

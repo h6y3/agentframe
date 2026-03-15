@@ -99,6 +99,27 @@ def _render_env_example(graph: Graph) -> str:
     if not secrets:
         lines.append("SECRET_KEY=change-me")
 
+    # Auto-detect LLM/API integrations and add their env vars
+    integrations = graph.list_nodes("integration")
+    api_integrations = [
+        n for n in integrations
+        if n.attrs.get("env_var") and n.attrs.get("provider") not in (
+            "gcp_cloudrun", "aws_apprunner", "google_oauth", "email_magic_link"
+        )
+    ]
+    if api_integrations:
+        lines.append("")
+        lines.append("# API integrations (from graph)")
+        for node in api_integrations:
+            env_var = node.attrs.get("env_var")
+            provider = node.attrs.get("provider", "unknown")
+            model = node.attrs.get("model", "")
+            comment = f"# {provider}"
+            if model:
+                comment += f" ({model})"
+            lines.append(comment)
+            lines.append(f"{env_var}=")
+
     return "\n".join(lines) + "\n"
 
 
