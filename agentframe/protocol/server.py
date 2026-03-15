@@ -317,7 +317,95 @@ async def list_tools() -> list[dict]:
             "method": "GET",
             "path": "/mcp/proposals",
         },
+        {
+            "name": "health",
+            "description": "Health check - verify graph and integrations are configured",
+            "method": "GET",
+            "path": "/mcp/health",
+        },
     ]
+
+
+@router.get("/health")
+async def health_check(test_connections: bool = False) -> dict:
+    """
+    Health check endpoint for deployment verification.
+    - Default: Checks if env vars are SET (fast)
+    - test_connections=true: Actually tests API connections (slower)
+    """
+    import os
+
+    graph = get_graph()
+
+    # Check graph is accessible
+    try:
+        graph.list_nodes(node_type="integration")
+        graph_ok = True
+    except Exception:
+        graph_ok = False
+
+    # Check integrations
+    integrations = []
+    for node in graph.list_nodes(node_type="integration"):
+        env_var = node.attrs.get("env_var")
+        is_set = bool(os.environ.get(env_var)) if env_var else None
+
+        result = {
+            "id": node.id,
+            "env_var": env_var,
+            "is_set": is_set,
+            "is_valid": None,  # Only populated if test_connections=true
+        }
+
+        if test_connections and is_set and env_var:
+            result["is_valid"] = _test_integration(node, os.environ.get(env_var))
+
+        integrations.append(result)
+
+    all_set = all(i["is_set"] for i in integrations if i["env_var"])
+
+    return {
+        "status": "healthy" if (graph_ok and all_set) else "degraded",
+        "graph_ok": graph_ok,
+        "integrations": integrations,
+    }
+
+
+def _test_integration(node, api_key: str) -> bool:
+    """Test if an integration's credentials actually work."""
+    provider = node.attrs.get("provider") or node.attrs.get("provider_type")
+    node_id = node.id.lower()
+
+    # Anthropic test
+    if provider == "anthropic" or "anthropic" in node_id:
+        try:
+            from anthropic import Anthropic
+            client = Anthropic(api_key=api_key)
+            client.messages.create(
+                model="claude-3-haiku-20240307",
+                max_tokens=1,
+                messages=[{"role": "user", "content": "hi"}],
+            )
+            return True
+        except Exception:
+            return False
+
+    # OpenAI test
+    if provider == "openai" or "openai" in node_id:
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=api_key)
+            client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                max_tokens=1,
+                messages=[{"role": "user", "content": "hi"}],
+            )
+            return True
+        except Exception:
+            return False
+
+    # Unknown provider
+    return None
 
 
 def _apply_proposal(graph: Graph, proposal: PatchProposal) -> None:
