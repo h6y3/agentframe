@@ -22,6 +22,7 @@ class PatchProposal(SQLModel, table=True):
     node_id: str
     attrs: dict = Field(default_factory=dict, sa_column=Column(JSON))
     label: Optional[str] = Field(default=None)
+    intent: Optional[str] = Field(default=None)  # Why this change is being made
     status: ProposalStatus = Field(default=ProposalStatus.PENDING)
     policy_results: list = Field(default_factory=list, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=datetime.utcnow)

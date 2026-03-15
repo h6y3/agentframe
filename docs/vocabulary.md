@@ -291,6 +291,40 @@ def _get_llm_config() -> tuple[str, str]:
 
 ---
 
+## meta
+
+App-level metadata that doesn't generate code. Use this to capture purpose, vision,
+and constraints that agents need to understand across sessions.
+
+```python
+graph.add_node("meta", "app", "MindShift", attrs={
+    "purpose": "Help people shift mindset during difficult moments",
+    "target_user": "Anyone facing a challenging situation who wants perspective",
+    "tone": "Warm, wise, non-judgmental",
+    "constraints": [
+        "Never give medical or legal advice",
+        "Always offer hope without toxic positivity"
+    ],
+})
+```
+
+**Why use a meta node?**
+- Survives across agent sessions (unlike session notes)
+- Queryable via `/mcp/graph/query` and `/mcp/graph/list?node_type=meta`
+- Returned in `/mcp/tools` summary for immediate context
+- Can be updated via proposals like any other node
+
+**Common attrs:**
+- `purpose` — What the app does and why it exists
+- `target_user` — Who the app is for
+- `tone` — Voice and style guidelines
+- `constraints` — What the app should never do
+- `design_decisions` — Key architectural choices and rationale
+
+**Generators:** None. Meta nodes are purely informational.
+
+---
+
 ## Secrets
 
 Secrets are not graph nodes — they live in the `secret_nodes` table managed by `EncryptedVault`.

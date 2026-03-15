@@ -148,21 +148,51 @@ If the user wants to deploy to GCP, help them set up the Cloud Run MCP server. T
 
 When building an app with AgentFrame, follow these conventions for cross-session agent continuity:
 
-### Session Log
+### Meta Node for App Purpose
 
-Create a `SESSION_LOG.md` file in your app root. Agents should:
-1. **Read it at session start** to understand what previous sessions did
-2. **Append to it at session end** summarizing what was accomplished
+Add a `meta` node to capture app purpose and context:
 
-Template entry:
-```markdown
-## YYYY-MM-DD - [Brief Title]
-
-**Goal**: What you set out to do
-**Outcome**: What actually happened
-**Files touched**: Key files modified
-**Next steps**: What's left to do
+```python
+graph.add_node("meta", "app", "MyApp", attrs={
+    "purpose": "What this app does and why it exists",
+    "target_user": "Who the app is for",
+    "tone": "Voice and style guidelines",
+    "constraints": ["What the app should never do"],
+})
 ```
+
+This node:
+- Survives across sessions (unlike session notes)
+- Returned in `/mcp/tools` summary for immediate context
+- Queryable via `/mcp/graph/list?node_type=meta`
+
+### Intent on Proposals
+
+When proposing graph changes, include an `intent` field explaining why:
+
+```json
+{
+    "op": "add",
+    "node_type": "entity",
+    "node_id": "comment",
+    "intent": "Adding comment system - user wants threaded discussions on quotes",
+    "attrs": {...}
+}
+```
+
+This helps future sessions understand why changes were made. Proposals without intent may be rejected in the console approval workflow.
+
+### Scratchpad for Session Notes
+
+Use `SCRATCHPAD.md` for session-scoped notes:
+- Debugging findings that didn't result in code changes
+- Environment issues encountered
+- Hypotheses explored but abandoned
+
+**This file is expected to be overwritten each session.** Findings worth preserving should:
+- Become the `intent` field in a proposal
+- Be added to `AGENTS.md` if they're project-level knowledge
+- Be added to the `meta` node if they're app-level context
 
 ### Health Check
 
@@ -178,7 +208,6 @@ Add an "AI Agents" section to your README.md pointing to AGENTS.md:
 ## AI Agents
 
 If you're an AI assistant, read `AGENTS.md` for project orientation.
-Check `SESSION_LOG.md` for recent session history.
 ```
 
 This ensures any agent (Claude, GPT, Gemini, etc.) knows where to start.

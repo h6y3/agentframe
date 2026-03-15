@@ -38,6 +38,7 @@ class PatchRequest(BaseModel):
     node_id: str
     attrs: dict = {}
     label: Optional[str] = None
+    intent: Optional[str] = None  # Why this change is being made
 
 
 class SimulateRequest(BaseModel):
@@ -125,6 +126,7 @@ async def patch_graph(req: PatchRequest) -> dict:
         node_id=req.node_id,
         attrs=req.attrs,
         label=req.label,
+        intent=req.intent,
         status=ProposalStatus.PENDING,
     )
 
@@ -265,15 +267,38 @@ async def list_proposals() -> list[dict]:
 
 
 @router.get("/tools")
-async def list_tools() -> list[dict]:
-    return [
+async def list_tools() -> dict:
+    """List available MCP tools with app context summary."""
+    graph = get_graph()
+
+    # Build app summary from graph
+    meta_nodes = graph.list_nodes(node_type="meta")
+    entity_nodes = graph.list_nodes(node_type="entity")
+    flow_nodes = graph.list_nodes(node_type="flow")
+    integration_nodes = graph.list_nodes(node_type="integration")
+
+    # Extract app purpose from meta node if present
+    app_purpose = None
+    for node in meta_nodes:
+        if node.attrs.get("purpose"):
+            app_purpose = node.attrs.get("purpose")
+            break
+
+    summary = {
+        "app_purpose": app_purpose,
+        "entities": [n.id for n in entity_nodes],
+        "flows": [n.id for n in flow_nodes],
+        "integrations": [n.id for n in integration_nodes],
+    }
+
+    tools = [
         {
             "name": "graph/list",
-            "description": "List nodes in the product graph",
+            "description": "List nodes in the product graph. TIP: Use node_type='meta' to understand app purpose.",
             "method": "POST",
             "path": "/mcp/graph/list",
             "input_schema": {
-                "node_type": "optional string: entity|flow|page|policy",
+                "node_type": "optional string: entity|flow|page|policy|meta|integration",
                 "filter": "optional string keyword filter",
             },
         },
@@ -288,6 +313,7 @@ async def list_tools() -> list[dict]:
                 "node_id": "string",
                 "attrs": "dict",
                 "label": "optional string",
+                "intent": "optional string: why this change is being made (recommended)",
             },
         },
         {
@@ -324,6 +350,8 @@ async def list_tools() -> list[dict]:
             "path": "/mcp/health",
         },
     ]
+
+    return {"summary": summary, "tools": tools}
 
 
 @router.get("/health")
