@@ -1,5 +1,6 @@
 from pathlib import Path
 from agentframe.graph.store import Graph
+from agentframe.generators.llm_gen import LLMGenerator
 from agentframe.generators.route_gen import RouteGenerator
 from agentframe.generators.schema_gen import SchemaGenerator
 from agentframe.generators.ui_gen import UIGenerator
@@ -13,6 +14,7 @@ from agentframe.generators.prod_gen import ProdGenerator
 
 # Map generator names to which node types trigger them
 _GENERATOR_TRIGGERS: dict[str, list[str]] = {
+    "LLMGenerator":         ["integration", "flow"],  # Must run before RouteGenerator
     "RouteGenerator":       ["flow"],
     "SchemaGenerator":      ["entity"],
     "UIGenerator":          ["flow", "page", "entity"],
@@ -30,6 +32,7 @@ class GeneratorEngine:
         self.graph = graph
         self.output_path = output_path
         self.generators = [
+            LLMGenerator(),  # Must run first - produces services/ that routes may import
             RouteGenerator(),
             SchemaGenerator(),
             UIGenerator(),

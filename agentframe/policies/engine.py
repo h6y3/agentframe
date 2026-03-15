@@ -6,6 +6,7 @@ from agentframe.runtime.proposals import PatchProposal
 import agentframe.policies.builtin.no_public_pii  # noqa: F401
 import agentframe.policies.builtin.auth_required  # noqa: F401
 import agentframe.policies.builtin.widget_limit  # noqa: F401
+import agentframe.policies.builtin.llm_policies  # noqa: F401
 
 
 class PolicyEngine:

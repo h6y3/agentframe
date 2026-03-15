@@ -22,9 +22,33 @@ graph.add_node("entity", "user", "User", attrs={
 })
 ```
 
-**Field `type` values:** `str` · `int` · `float` · `bool` · `datetime` · `list` · `dict`
+**Field `type` values:** `str` · `int` · `float` · `bool` · `datetime` · `list` · `dict` · `object`
 
 **Generated REST API:** `GET/POST /api/<id>s/` · `GET/PUT/DELETE /api/<id>s/{id}`
+
+### Tool schema entities
+
+Entities can be marked as LLM tool schemas with `is_tool_schema: True`.
+These are converted to JSON schemas for structured LLM output.
+
+```python
+graph.add_node("entity", "wisdom_output", "Wisdom Output", attrs={
+    "is_tool_schema": True,
+    "fields": [
+        {"name": "insight", "type": "str", "description": "The key insight", "required": True},
+        {"name": "action", "type": "str", "description": "Suggested action", "required": True},
+        {"name": "confidence", "type": "float", "description": "0.0-1.0 confidence", "required": False},
+    ],
+})
+```
+
+Reference in LLM steps via `tool_schema_ref`:
+
+```python
+{"name": "generate", "type": "llm", "integration_ref": "anthropic_llm", "tool_schema_ref": "wisdom_output"}
+```
+
+This ensures the LLM returns structured JSON matching the entity schema.
 
 **Policies that apply:**
 - `no_public_pii` — fails with error if any field has `pii: True` and `requires_auth` is False
@@ -37,6 +61,8 @@ graph.add_node("entity", "user", "User", attrs={
 A multi-step user journey. Maps to a generated FastAPI router in `generated/routes/`
 and a set of HTML form templates in `generated/templates/<flow_id>/`.
 
+### Legacy format (string steps)
+
 ```python
 graph.add_node("flow", "signup", "Sign Up", attrs={
     "steps": ["email_capture", "plan_select", "confirm"],   # snake_case, URL-safe
@@ -44,12 +70,66 @@ graph.add_node("flow", "signup", "Sign Up", attrs={
 })
 ```
 
-Generated routes per step:
+### Modern format (dict steps with types)
+
+The modern format supports three step types: `form`, `llm`, and `display`.
+
+```python
+graph.add_node("flow", "reflect", "Reflect & Shift", attrs={
+    "steps": [
+        # Form step: collects user input
+        {"name": "describe", "type": "form", "fields": [
+            {"name": "situation", "type": "textarea", "required": True}
+        ]},
+        # LLM step: calls an LLM and streams the response
+        {"name": "generate", "type": "llm",
+         "integration_ref": "anthropic_llm",      # references an LLM integration
+         "system_prompt": "You are a helpful assistant...",
+         # OR use prompt_ref to load from resources/prompts/{ref}.md
+         # "prompt_ref": "wise_counselor",
+         "tool_schema_ref": "wisdom_output",      # optional: references an entity with is_tool_schema
+         "max_tokens": 4096},
+        # Display step: shows the LLM result
+        {"name": "result", "type": "display"},
+    ],
+    "entity_refs": ["wisdom"],
+})
+```
+
+### Step types
+
+| Type | Required attrs | Optional attrs | Description |
+|------|---------------|----------------|-------------|
+| `form` | `name` | `fields`, `validator_fn` | User input form |
+| `llm` | `name`, `integration_ref` | `system_prompt`, `prompt_ref`, `tool_schema`, `tool_schema_ref`, `max_tokens` | LLM call with streaming |
+| `display` | `name` | `template_ref` | Show results |
+
+### Form field types
+
+| Type | HTML input |
+|------|------------|
+| `str` | `<input type="text">` |
+| `email` | `<input type="email">` |
+| `int` | `<input type="number">` |
+| `float` | `<input type="number" step="0.01">` |
+| `bool` | `<input type="checkbox">` |
+| `textarea` | `<textarea>` |
+
+### Generated routes
+
 - `GET  /<flow_id>/start` → renders first step template
 - `POST /<flow_id>/step/<step_name>` → advances to next step
+- `GET  /<flow_id>/step/<step_name>/stream/{session_id}` → SSE stream for LLM steps
+- `GET  /<flow_id>/step/<step_name>/result/{session_id}` → result page after LLM
 - `GET  /<flow_id>/complete` → success page
 
 All form templates include a `_csrf_token` hidden field automatically.
+
+### Policies that apply
+
+- `flow_steps_valid` — validates step schema (required fields, valid types)
+- `llm_integration_ref_exists` — ensures LLM steps reference existing integrations
+- `flow_steps_modern_format` — warns if using legacy string format (not an error)
 
 ---
 
@@ -134,26 +214,58 @@ graph.add_node("integration", "deploy_aws", "Deploy: AWS App Runner", attrs={
 
 See `docs/deploy-gcp-cloudrun.md` for full GCP Cloud Run setup guide.
 
-### LLM / API providers
+### LLM providers (with code generation)
 
-For apps that call external APIs (Anthropic, OpenAI, etc.), use an integration node
-to store configuration. Your custom code in `app/` reads from the graph.
+For LLM integrations that generate client code, use `provider_type: "llm"`.
+This triggers the `LLMGenerator` to create `generated/services/llm_client.py`
+and provider-specific adapters.
 
 ```python
-# Anthropic Claude
-graph.add_node("integration", "anthropic", "Anthropic API", attrs={
+# Anthropic Claude (generates client code)
+graph.add_node("integration", "anthropic_llm", "Anthropic LLM", attrs={
+    "provider_type": "llm",                  # triggers LLMGenerator
     "provider": "anthropic",
-    "model": "claude-haiku-4-5-20251001",  # or claude-sonnet-4-20250514, etc.
-    "env_var": "ANTHROPIC_API_KEY",        # which env var holds the API key
-    "purpose": "wisdom_generation",         # what this integration is used for
+    "default_model": "claude-haiku-4-5-20251001",
+    "env_var": "ANTHROPIC_API_KEY",
 })
 
-# OpenAI
-graph.add_node("integration", "openai", "OpenAI API", attrs={
+# OpenAI (generates client code)
+graph.add_node("integration", "openai_llm", "OpenAI LLM", attrs={
+    "provider_type": "llm",
     "provider": "openai",
-    "model": "gpt-4o",
+    "default_model": "gpt-4o",
     "env_var": "OPENAI_API_KEY",
-    "purpose": "chat_completion",
+})
+```
+
+**LLM integrations generate:**
+- `generated/services/llm_client.py` — provider-agnostic interface
+- `generated/services/anthropic_adapter.py` — Anthropic-specific code
+- `generated/services/openai_adapter.py` — OpenAI-specific code
+
+**Using in flow steps:**
+
+Reference the integration in an LLM step:
+
+```python
+{"name": "generate", "type": "llm", "integration_ref": "anthropic_llm", ...}
+```
+
+**Policies that apply:**
+- `llm_integration_valid` — validates required attrs (provider, env_var)
+
+### LLM / API providers (config only)
+
+For apps that call external APIs manually (custom code in `app/`), use an integration
+node without `provider_type: "llm"` to store configuration only.
+
+```python
+# Anthropic Claude (config only, no code generation)
+graph.add_node("integration", "anthropic", "Anthropic API", attrs={
+    "provider": "anthropic",
+    "model": "claude-haiku-4-5-20251001",
+    "env_var": "ANTHROPIC_API_KEY",
+    "purpose": "wisdom_generation",
 })
 ```
 
