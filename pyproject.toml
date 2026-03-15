@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentframe"
-version = "0.2.0"
+version = "0.3.0"
 description = "Agent-native web framework where the Product Graph is the source of truth"
 requires-python = ">=3.11"
 dependencies = [
@@ -38,6 +38,9 @@ agentframe = "agentframe.deployment.cli:app"
 
 [tool.setuptools.packages.find]
 include = ["agentframe*"]
+
+[tool.setuptools.package-data]
+"agentframe.console" = ["templates/*.html"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
