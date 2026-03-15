@@ -8,7 +8,7 @@ After the initial burst of generation, most AI-assisted codebases enter a slow d
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org)
-[![Tests](https://img.shields.io/badge/tests-35%20passing-brightgreen)](#running-the-test-suite)
+[![Tests](https://img.shields.io/badge/tests-63%20passing-brightgreen)](#running-the-test-suite)
 
 ---
 
@@ -90,6 +90,33 @@ A bug or improvement in `route_gen.py` instantly improves every generated route 
 
 When multiple AI sessions work on the same product, they submit proposals to the shared graph — not competing file edits. There are no file-level merge conflicts at the structural level.
 
+### LLM integration as a first-class concept (v0.3.0+)
+
+Flows can include LLM steps with streaming support:
+
+```python
+graph.add_node("integration", "anthropic_llm", "Anthropic", attrs={
+    "provider_type": "llm",
+    "provider": "anthropic",
+    "default_model": "claude-haiku-4-5-20251001",
+    "env_var": "ANTHROPIC_API_KEY",
+})
+
+graph.add_node("flow", "chat", "Chat", attrs={
+    "steps": [
+        {"name": "input", "type": "form", "fields": [
+            {"name": "message", "type": "textarea", "required": True}
+        ]},
+        {"name": "respond", "type": "llm",
+         "integration_ref": "anthropic_llm",
+         "system_prompt": "You are a helpful assistant."},
+        {"name": "result", "type": "display"},
+    ],
+})
+```
+
+The `LLMGenerator` produces provider adapters. The `RouteGenerator` produces SSE streaming routes. The `UIGenerator` produces loading templates with EventSource JavaScript. Run the generators → working app.
+
 ---
 
 ## How it works
@@ -155,9 +182,9 @@ The engine knows exactly which generators are affected by any node change. Only 
 | Changed node type | Generators that re-run |
 |---|---|
 | `entity` | `SchemaGenerator` · `CRUDGenerator` · `UIGenerator` · `MigrationGenerator` · `DockerfileGenerator` · `ProdGenerator` (and any flows/pages that reference it) |
-| `flow` | `RouteGenerator` · `UIGenerator` · `DockerfileGenerator` · `ProdGenerator` |
+| `flow` | `LLMGenerator` · `RouteGenerator` · `UIGenerator` · `DockerfileGenerator` · `ProdGenerator` |
 | `page` | `UIGenerator` |
-| `integration` | `AuthGenerator` · `DeploymentGenerator` · `DockerfileGenerator` · `ProdGenerator` |
+| `integration` | `LLMGenerator` · `AuthGenerator` · `DeploymentGenerator` · `DockerfileGenerator` · `ProdGenerator` |
 | `policy` | none (metadata only) |
 
 ---
@@ -202,7 +229,7 @@ The production container (`main_prod.py`, generated) has no `/mcp` and no `/_con
 
 ```bash
 .venv/bin/python -m pytest tests/ -v
-# 35 passed
+# 63 passed
 ```
 
 | File | What it covers |
@@ -211,6 +238,7 @@ The production container (`main_prod.py`, generated) has no `/mcp` and no `/_con
 | `tests/test_generators.py` | File generation, blast radius, determinism guarantee |
 | `tests/test_policies.py` | PII policy, auth policy, widget limit warn vs. error |
 | `tests/test_protocol.py` | Full MCP endpoint integration, auto-approve logic |
+| `tests/test_llm_gen.py` | Step schema validation, LLM generator, streaming routes, LLM policies |
 
 ---
 

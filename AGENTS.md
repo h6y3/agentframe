@@ -26,17 +26,21 @@ The loop is: **propose → validate → approve → regenerate → live.**
 ### 3. Understand how generators work
 - `agentframe/generators/base.py` — BaseGenerator ABC (pure function contract)
 - `agentframe/generators/engine.py` — blast radius, run_all, run_for_node
-- `agentframe/generators/route_gen.py` — example: flow → FastAPI router
-- `agentframe/generators/schema_gen.py` — example: entity → Pydantic model
+- `agentframe/generators/route_gen.py` — flow → FastAPI router (supports form, llm, display steps)
+- `agentframe/generators/schema_gen.py` — entity → Pydantic model
 - `agentframe/generators/crud_gen.py` — entity → SQLModel table + CRUD REST API
+- `agentframe/generators/llm_gen.py` — integration (provider_type: llm) → LLM client + adapters
 - `agentframe/generators/auth_gen.py` — integration → auth routes + CSRF middleware
+- `agentframe/generators/ui_gen.py` — flow/page → Jinja2 templates (including LLM loading states)
 - `agentframe/generators/prod_gen.py` — generates main_prod.py (no MCP/console)
+- `agentframe/graph/step_schema.py` — step normalization and validation for flows
 
 ### 4. Understand policies
 - `agentframe/policies/base.py` — @policy decorator, PolicyResult, registry
 - `agentframe/policies/engine.py` — PolicyEngine.validate() and is_approved()
 - `agentframe/policies/builtin/no_public_pii.py` — example error policy
 - `agentframe/policies/builtin/widget_limit.py` — example warning policy
+- `agentframe/policies/builtin/llm_policies.py` — LLM step validation, integration validation
 
 ### 5. Understand secrets and deployment
 - `agentframe/secrets/vault.py` — EncryptedVault: declare/set/get/list
@@ -98,7 +102,16 @@ The loop is: **propose → validate → approve → regenerate → live.**
 | `page` | `widgets`, `requires_auth`, `entity_refs` | Jinja2 page template |
 | `policy` | `rule_fn`, `severity` | Metadata only (enforcement is in Python) |
 | `integration` (auth) | `provider: "google_oauth"` or `"email_magic_link"` | Auth routes + CSRF middleware |
+| `integration` (llm) | `provider_type: "llm"`, `provider`, `env_var` | LLM client + provider adapters |
 | `integration` (deploy) | `provider: "gcp_cloudrun"` or `"aws_apprunner"` | Deploy scripts + service config |
+
+## Flow step types (v0.3.0+)
+
+| step type | Key attrs | What it generates |
+|---|---|---|
+| `form` | `fields` | Form template with inputs |
+| `llm` | `integration_ref`, `system_prompt` or `prompt_ref` | SSE streaming route + loading template |
+| `display` | `template_ref` (optional) | Result display template |
 
 ## Cloud Run MCP (Claude Code deployment)
 
