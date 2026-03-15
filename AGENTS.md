@@ -143,3 +143,42 @@ If the user wants to deploy to GCP, help them set up the Cloud Run MCP server. T
 - New generated routes only go live after server restart (`--reload` handles this)
 - `main_prod.py` is generated — never edit by hand
 - Secrets are encrypted at rest; never log or display decrypted values
+
+## Conventions for Apps Using AgentFrame
+
+When building an app with AgentFrame, follow these conventions for cross-session agent continuity:
+
+### Session Log
+
+Create a `SESSION_LOG.md` file in your app root. Agents should:
+1. **Read it at session start** to understand what previous sessions did
+2. **Append to it at session end** summarizing what was accomplished
+
+Template entry:
+```markdown
+## YYYY-MM-DD - [Brief Title]
+
+**Goal**: What you set out to do
+**Outcome**: What actually happened
+**Files touched**: Key files modified
+**Next steps**: What's left to do
+```
+
+### Health Check
+
+After starting the server, verify setup with:
+```bash
+curl -s http://localhost:8000/mcp/health | python3 -m json.tool
+```
+
+### README Bootstrap
+
+Add an "AI Agents" section to your README.md pointing to AGENTS.md:
+```markdown
+## AI Agents
+
+If you're an AI assistant, read `AGENTS.md` for project orientation.
+Check `SESSION_LOG.md` for recent session history.
+```
+
+This ensures any agent (Claude, GPT, Gemini, etc.) knows where to start.
